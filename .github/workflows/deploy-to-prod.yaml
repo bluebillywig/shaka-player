@@ -1,0 +1,76 @@
+# Manually deploy to prod.
+#
+name: Deploy to prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version {x}.{y}.{z}
+        required: true
+
+env:
+  ENVIRONMENT: prod
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: bb-custom-receiver
+          fetch-depth: 0
+          token: ${{ secrets.GLOBAL_ACTION_TOKEN }}
+          submodules: recursive
+
+      # - name: Validate release version
+      #   run: |
+      #     if [[ "${{ github.event.inputs.version }}" =~ ^(v|)?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+      #       RELEASE_TAG="v${BASH_REMATCH[2]}.${BASH_REMATCH[3]}.${BASH_REMATCH[4]}"
+      #       REF="refs/tags/${RELEASE_TAG}"
+
+      #       if ! git rev-parse -q --verify ${REF} >/dev/null; then
+      #         echo "::error::Release ${RELEASE_TAG} does not exist."
+      #         false
+      #       fi
+
+      #       echo "REF=${REF}" >>$GITHUB_ENV
+      #       git checkout -q ${REF}
+      #       git submodule update
+      #     else
+      #       echo "::error::Invalid release version '${{ github.event.inputs.version }}'. Use [v{x}.{y}.{z}|{x}.{y}.{z}]"
+      #       false
+      #     fi
+
+      - name: Annotate revision
+        run: |
+          echo "{\"ref\":\"${REF}\",\"sha\":\"$(git rev-parse ${REF})\"}" >revision.json
+          echo "::notice::revision.json: $(cat revision.json)"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          aws-access-key-id: '${{ secrets.AWS_ACCESS_KEY_ID }}'
+          aws-secret-access-key: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+          aws-region: eu-west-1
+
+      - name: Use Node 16
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16.15.0'
+
+      - name: Set version
+        run: echo "VERSION=$( date +%Y%m%d.%H%M%S )" >>$GITHUB_ENV
+
+      - name: Build
+        run: |
+          # Self-hosted runners can keep these folders around between runs, wipe them so we always build latest
+          rm -rf dist/
+          ./build/all.py
+
+      - name: Deploy
+        run: |
+          aws s3 sync --cache-control public,max-age=1209600 ./receiver* s3://dub.cdn.bluebillywig.com/${{ env.ENVIRONMENT }}/apps/castreceiver/${{ env.VERSION }}/
+          aws s3 sync --metadata-directive REPLACE --cache-control public,max-age=600 ./receiver* s3://dub.cdn.bluebillywig.com/${{ env.ENVIRONMENT }}/apps/castreceiver/latest/
