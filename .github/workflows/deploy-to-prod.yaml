@@ -9,6 +9,10 @@ on:
         description: Release version {x}.{y}.{z}
         required: true
 
+  push:
+    branches:
+      - bb-custom-receiver
+
 env:
   ENVIRONMENT: prod
 
