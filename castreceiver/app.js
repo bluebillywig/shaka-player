@@ -1,0 +1,1 @@
+../dist/receiver.compiled.js

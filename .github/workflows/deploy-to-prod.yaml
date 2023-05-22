@@ -76,5 +76,5 @@ jobs:
 
       - name: Deploy
         run: |
-          aws s3 sync --cache-control public,max-age=1209600 ./receiver* s3://dub.cdn.bluebillywig.com/${{ env.ENVIRONMENT }}/apps/castreceiver/${{ env.VERSION }}/
-          aws s3 sync --metadata-directive REPLACE --cache-control public,max-age=600 ./receiver* s3://dub.cdn.bluebillywig.com/${{ env.ENVIRONMENT }}/apps/castreceiver/latest/
+          aws s3 sync --cache-control public,max-age=1209600 castreceiver/* s3://dub.cdn.bluebillywig.com/${{ env.ENVIRONMENT }}/apps/castreceiver/${{ env.VERSION }}/
+          aws s3 sync --metadata-directive REPLACE --cache-control public,max-age=600 castreceiver/* s3://dub.cdn.bluebillywig.com/${{ env.ENVIRONMENT }}/apps/castreceiver/latest/
